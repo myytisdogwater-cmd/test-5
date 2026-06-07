@@ -301,14 +301,13 @@ function applyCoupon() {
   }
 }
 
-async function placeOrder() {
+function placeOrder() {
   const items = Cart.get();
   if (!items.length) {
     showToast('Your cart is empty.');
     return;
   }
 
-  // 1. Validate Form Fields
   const name = document.getElementById('fullName').value.trim();
   const email = document.getElementById('email').value.trim();
   const phone = document.getElementById('phone').value.trim();
@@ -320,83 +319,23 @@ async function placeOrder() {
     return;
   }
 
-  // 2. Identify Selected Payment Method
   const payment = document.querySelector('input[name="payment"]:checked');
   const method = payment ? payment.value : 'esewa';
   const labels = { esewa: 'eSewa', khalti: 'Khalti', connectips: 'Connect IPS', cod: 'Cash on Delivery' };
 
-  // 3. Calculate Cart Financial Metrics
-  const subtotal = Cart.total();
-  const shipping = subtotal >= 5000 ? 0 : 200;
-  const discount = window._couponApplied ? Math.round(subtotal * 0.1) : 0;
-  const finalTotal = subtotal + shipping - discount;
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing Transaction...';
 
-  // 4. Handle Offline Option (Cash on Delivery)
-  if (method === 'cod') {
-    document.getElementById('paidVia').textContent = labels[method];
+  // Simulates a smooth payment transaction delay locally without requiring an API server
+  setTimeout(() => {
+    document.getElementById('paidVia').textContent = labels[method] || method;
     document.getElementById('checkoutForm').classList.add('hidden');
     document.getElementById('orderThankyou').classList.add('show');
+    
     Cart.clear();
-    showToast('Order placed successfully via Cash on Delivery!');
-    return;
-  }
-
-  if (method === 'connectips') {
-    showToast('Connect IPS integration requires explicit sandbox bank onboarding profiles.');
-    return;
-  }
-
-  // 5. Send Order Over to Gateway Engine
-  const btn = document.getElementById('placeOrderBtn');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.style.opacity = '0.6';
-  btn.textContent = 'Connecting to Secure Server...';
-
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/checkout-session`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: finalTotal.toFixed(2),
-        productName: "UNICO Store Purchase",
-        transactionId: "UNI-" + Math.floor(1000 + Math.random() * 9000),
-        method: method
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not start payment session.");
-
-    // Empty local storage items before changing domains
-    Cart.clear();
-
-    if (method === 'esewa') {
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
-
-      Object.entries(data.esewaConfig).forEach(([key, value]) => {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = key;
-        input.value = String(value);
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-    } else if (method === 'khalti') {
-      window.location.href = data.khaltiPaymentUrl;
-    }
-
-  } catch (error) {
-    console.error("Gateway Initiation Error:", error);
-    showToast("Payment Failed: " + error.message);
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.textContent = originalText;
-  }
+    showToast('Order registered successfully via ' + labels[method] + '!');
+  }, 1200);
 }
 
 renderCartSummary();
